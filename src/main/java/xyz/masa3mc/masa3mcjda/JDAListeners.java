@@ -2,174 +2,135 @@ package xyz.masa3mc.masa3mcjda;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+import net.dv8tion.jda.api.events.guild.GuildReadyEvent;
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
+import net.dv8tion.jda.api.interactions.commands.build.CommandData;
+import net.dv8tion.jda.api.interactions.commands.build.Commands;
+import net.md_5.bungee.api.ChatColor;
+import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.ProxyServer;
+import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Objects;
 
 
 public class JDAListeners extends ListenerAdapter {
+    public static HashMap<Member,String> playercheck = new HashMap<>();
+    public static HashMap<String,Member> checker = new HashMap<>();
+    public static HashMap<String,Integer> checkertimer = new HashMap<>();
 
     @Override
-    public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
-        if(event.getMessage().getContentRaw().equalsIgnoreCase("!ms status")){
-            TextChannel channel = event.getChannel();
-            Message message = event.getMessage();
-            sendServerStatus(channel, message);
-        }
-        if(event.getMessage().getContentRaw().contains("!ms check")){
-            TextChannel channel = event.getChannel();
-            Member member = event.getMember();
-            Message message = event.getMessage();
-            sendPlayerInfo(channel,member,message);
-        }
-        if(event.getMessage().getContentRaw().contains("!ms token")){
-            TextChannel channel = event.getChannel();
-            Member member = event.getMember();
-            Message message = event.getMessage();
-            checkToken(channel,member,message);
-        }
+    public void onGuildReady(GuildReadyEvent event){
+        List<CommandData> commandData = new ArrayList<>();
+        commandData.add(Commands.slash("setmcid","DiscordとMinecraftを連携します").addOption(OptionType.STRING,"mcid", "あなたのMCIDを入力してください"));
+        commandData.add(Commands.slash("players","サーバー内の人数を表示します"));
+        event.getGuild().updateCommands().addCommands(commandData).queue();
     }
 
-    private void checkToken(TextChannel channel, Member member, Message message) {
-        String[] msg = message.getContentRaw().split(" ");
-        if(msg.length == 3) {
-            String token = msg[2];
-            for (ProxiedPlayer player : ProxyServer.getInstance().getPlayers()) {
-                if (Objects.equals(DiscordPartner.privatetoken.get(player.getName()), token)) {
-                    new DBcontrol().setDiscordID(player.getUniqueId(), member.getId());
-                    channel.sendMessage("<@" + member.getId() + ">と" + player.getName() + "の連携に成功しました。").queue(message1 -> {
-                        try {
-                            Thread.sleep(3000);
-                            message1.delete().queue();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
+    @Override
+    public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+        if(event.getName().equals("players")) {
+            if (event.getChannel().getId().equals("renkei")) {
+                event.reply("❌ここでは使用できません。").setEphemeral(true).queue();
+                return;
+            }
+            String lobby;
+            if (ProxyServer.getInstance().getServerInfo("Lobby").getPlayers().size() != 0) {
+                lobby = "\n-";
+                for (ProxiedPlayer player : ProxyServer.getInstance().getServerInfo("Lobby").getPlayers()) {
+                    lobby = lobby + " " + player.getName();
+                }
+            } else {
+                lobby = "";
+            }
+
+            String Creative;
+            if (ProxyServer.getInstance().getServerInfo("Creative").getPlayers().size() != 0) {
+                Creative = "\n-";
+                for (ProxiedPlayer player : ProxyServer.getInstance().getServerInfo("Creative").getPlayers()) {
+                    Creative = Creative + " " + player.getName();
+                }
+            } else {
+                Creative = "";
+            }
+
+            String Survival;
+            if (ProxyServer.getInstance().getServerInfo("Survival").getPlayers().size() != 0) {
+                Survival = "\n-";
+                for (ProxiedPlayer player : ProxyServer.getInstance().getServerInfo("Survival").getPlayers()) {
+                    Survival = Survival + " " + player.getName();
+                }
+            } else {
+                Survival = "";
+            }
+
+            String PvP;
+            if (ProxyServer.getInstance().getServerInfo("PvP").getPlayers().size() != 0) {
+                PvP = "\n-";
+                for (ProxiedPlayer player : ProxyServer.getInstance().getServerInfo("PvP").getPlayers()) {
+                    PvP = PvP + " " + player.getName();
+                }
+            } else {
+                PvP = "";
+            }
+
+            int ServerPlayers = ProxyServer.getInstance().getOnlineCount();
+            int LobbyPlayers = ProxyServer.getInstance().getServerInfo("Lobby").getPlayers().size();
+            int CreativePlayers = ProxyServer.getInstance().getServerInfo("Creative").getPlayers().size();
+            int SurvivalPlayers = ProxyServer.getInstance().getServerInfo("Survival").getPlayers().size();
+            int PvPPlayers = ProxyServer.getInstance().getServerInfo("PvP").getPlayers().size();
+            EmbedBuilder builder = new EmbedBuilder()
+                    .setColor(Color.ORANGE)
+                    .setFooter("masa3mc.xyz")
+                    .setTitle("Masa3MCNetwork Gen2")
+                    .addField("Info", "onlinePlayers:  " + ServerPlayers + "/100"
+                            + "\n" + "Lobby: " + LobbyPlayers + lobby
+                            + "\n" + "Creative: " + CreativePlayers + Creative
+                            + "\n" + "Survival: " + SurvivalPlayers + Survival
+                            + "\n" + "PvP: " + PvPPlayers + PvP, true);
+
+            event.replyEmbeds(builder.build()).queue();
+        }else if(event.getName().equals("setmcid")){
+            if(event.getChannel().getId().equals("renkei")){
+                String mcid = event.getOption("mcid").getAsString();
+                for(String string: playercheck.values()){
+                    if(Objects.equals(string, mcid)){
+                        event.reply("5分間隔を開けてください。").setEphemeral(true).queue();
+                        return;
+                    }
+                }
+                for(ProxiedPlayer player: ProxyServer.getInstance().getPlayers()){
+                    if(player.getName().equals(mcid)){
+                        DBcontrol dBcontrol = new DBcontrol();
+                        if(dBcontrol.getDiscordID(mcid) == null) {
+                            event.reply("連携リクエストを送りました。\nMinecraftの画面を開き/discordを実行してください。(5分以内に)").setEphemeral(true).queue();
+                            checkServer(mcid, event.getMember());
+                            return;
                         }
-                    });
-                    DiscordPartner.tokentime.remove(player.getName());
-                    DiscordPartner.tokensec.remove(player.getName());
-                    DiscordPartner.privatetoken.remove(player.getName());
-                    message.delete().queue();
-                    return;
+                    }
                 }
+                event.reply("masa3mc.xyzに接続した状態で実行してください。").setEphemeral(true).queue();
+            }else {
+                event.reply("❌ここでは使用できません。").setEphemeral(true).queue();
             }
-            channel.sendMessage("<@" + member.getId() + ">との連携に失敗しました、やり直してください。").queue(message1 -> {
-                try {
-                    Thread.sleep(3000);
-                    message1.delete().queue();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            });
         }
-        message.delete().queue();
     }
 
-    private void sendPlayerInfo(TextChannel channel, Member member, Message message) {
-        String[] msg = message.getContentRaw().split(" ");
-        if(msg.length == 3) {
-            String msgmcid = msg[2].toUpperCase();
-            try {
-                ProxiedPlayer player = ProxyServer.getInstance().getPlayer(msgmcid);
-                String mcid = player.getName();
-                String discord_name = null;
-                if(new DBcontrol().getDiscordID(msgmcid) != null)
-                    discord_name = channel.getGuild().getMemberById(new DBcontrol().getDiscordID(msgmcid)).getUser().getName();
-                EmbedBuilder builder = new EmbedBuilder()
-                        .setColor(Color.GREEN)
-                        .setFooter("masa3mc.xyz")
-                        .setTitle(mcid + "'s Info", "https://ja.namemc.com/profile/" + mcid + ".1")
-                        .addField("オンライン", "接続サーバー: " + player.getServer().getInfo().getName()
-                                + "\nUUID: " + player.getUniqueId().toString()
-                                + "\nPing: " + player.getPing() + "ms"
-                                + "\n連携: " + discord_name
-                                + "\n最終ログイン: " + new DBcontrol().getInTime(msgmcid), true)
-                        .setImage("https://crafatar.com/renders/body/" + player.getUniqueId().toString());
-                channel.sendMessage(builder.build()).queue();
-            } catch (Exception e) {
-                String discord_name = null;
-                if(new DBcontrol().getDiscordID(msgmcid) != null)
-                    discord_name = channel.getGuild().getMemberById(new DBcontrol().getDiscordID(msgmcid)).getUser().getName();
-                String uuid = new DBcontrol().getUuid(msgmcid);
-                EmbedBuilder builder = new EmbedBuilder()
-                        .setColor(Color.RED)
-                        .setFooter("masa3mc.xyz")
-                        .setTitle(msgmcid + "'s Info", "https://ja.namemc.com/profile/" + msgmcid + ".1")
-                        .addField("オフライン", "接続サーバー: none"
-                                + "\nUUID: " + uuid
-                                + "\nPing: -1ms"
-                                + "\n連携: " + discord_name
-                                + "\n最終ログイン: " + new DBcontrol().getInTime(msgmcid), true)
-                        .setImage("https://crafatar.com/renders/body/" + uuid);
-                channel.sendMessage(builder.build()).queue();
-            }
-        }
-        message.delete().queue();
-    }
-
-
-    private void sendServerStatus(TextChannel channel, Message message) {
-        String lobby;
-        if(ProxyServer.getInstance().getServerInfo("Lobby").getPlayers().size() != 0){
-            lobby = "\n-";
-            for(ProxiedPlayer player: ProxyServer.getInstance().getServerInfo("Lobby").getPlayers()){
-                lobby = lobby + " " + player.getName();
-            }
-        }else {
-            lobby = "";
-        }
-
-        String Creative;
-        if(ProxyServer.getInstance().getServerInfo("Creative").getPlayers().size() != 0){
-            Creative = "\n-";
-            for(ProxiedPlayer player: ProxyServer.getInstance().getServerInfo("Creative").getPlayers()){
-                Creative = Creative + " " + player.getName();
-            }
-        }else {
-            Creative = "";
-        }
-
-        String Survival;
-        if(ProxyServer.getInstance().getServerInfo("Survival").getPlayers().size() != 0){
-            Survival = "\n-";
-            for(ProxiedPlayer player: ProxyServer.getInstance().getServerInfo("Survival").getPlayers()){
-                Survival = Survival + " " + player.getName();
-            }
-        }else {
-            Survival = "";
-        }
-
-        String PvP;
-        if(ProxyServer.getInstance().getServerInfo("PvP").getPlayers().size() != 0){
-            PvP = "\n-";
-            for(ProxiedPlayer player: ProxyServer.getInstance().getServerInfo("PvP").getPlayers()){
-                PvP = PvP + " " + player.getName();
-            }
-        }else {
-            PvP = "";
-        }
-
-        int ServerPlayers = ProxyServer.getInstance().getOnlineCount();
-        int LobbyPlayers = ProxyServer.getInstance().getServerInfo("Lobby").getPlayers().size();
-        int CreativePlayers = ProxyServer.getInstance().getServerInfo("Creative").getPlayers().size();
-        int SurvivalPlayers = ProxyServer.getInstance().getServerInfo("Survival").getPlayers().size();
-        int PvPPlayers = ProxyServer.getInstance().getServerInfo("PvP").getPlayers().size();
-        EmbedBuilder builder = new EmbedBuilder()
-                .setColor(Color.ORANGE)
-                .setFooter("masa3mc.xyz")
-                .setTitle("Masa3MCNetwork Gen2")
-                .addField("Info", "onlinePlayers:  " + ServerPlayers + "/100"
-                        + "\n" + "Lobby: " + LobbyPlayers + lobby
-                        + "\n" + "Creative: " + CreativePlayers + Creative
-                        + "\n" + "Survival: " + SurvivalPlayers + Survival
-                        + "\n" + "PvP: " + PvPPlayers + PvP , true);
-
-        channel.sendMessage(builder.build()).queue();
-        message.delete().queue();
+    private void checkServer(String mcid,Member member) {
+        ProxiedPlayer player = ProxyServer.getInstance().getPlayer(mcid);
+        player.sendMessage(ChatMessageType.CHAT, new TextComponent(
+                ChatColor.AQUA + "Discord連携: " + ChatColor.WHITE + member.getEffectiveName() + " から連携リクエストが届きました。\n" +
+                        ChatColor.AQUA + "Discord連携: " + ChatColor.WHITE + "あなたのアカウントの場合は" + ChatColor.GREEN + "/discord" + ChatColor.WHITE + "を実行してください。\n" +
+                        ChatColor.AQUA + "Discord連携: " + ChatColor.WHITE + "あなたのアカウントではない場合は無視してください。"));
+        playercheck.put(member,mcid);
+        checker.put(mcid,member);
+        checkertimer.put(mcid,300);
     }
 }

@@ -1,5 +1,6 @@
 package xyz.masa3mc.masa3mcjda;
 
+import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
@@ -27,7 +28,7 @@ public class PingCommand extends Command {
                 pings = "§c" + ping + "ms";
             }
 
-            player.sendMessage(new TextComponent("§6Your ping: " + pings));
+            player.sendMessage(ChatMessageType.ACTION_BAR,new TextComponent("§6Your ping: " + pings));
         }
 
     }
